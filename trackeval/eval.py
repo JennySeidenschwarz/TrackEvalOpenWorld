@@ -25,7 +25,7 @@ class Evaluator:
 
             'PRINT_RESULTS': True,
             'PRINT_ONLY_COMBINED': False,
-            'PRINT_CONFIG': True,
+            'PRINT_CONFIG': False,
             'TIME_PROGRESS': True,
             'DISPLAY_LESS_PROGRESS': True,
 
@@ -46,7 +46,7 @@ class Evaluator:
                 _timing.DISPLAY_LESS_PROGRESS = True
 
     @_timing.time
-    def evaluate(self, dataset_list, metrics_list):
+    def evaluate(self, dataset_list, metrics_list, do_print=True):
         """Evaluate a set of metrics on a set of datasets"""
         config = self.config
         metrics_list = metrics_list + [Count()]  # Count metrics are always run
@@ -60,9 +60,12 @@ class Evaluator:
             output_res[dataset_name] = {}
             output_msg[dataset_name] = {}
             tracker_list, seq_list, class_list = dataset.get_eval_info()
-            print('\nEvaluating %i tracker(s) on %i sequence(s) for %i class(es) on %s dataset using the following '
-                  'metrics: %s\n' % (len(tracker_list), len(seq_list), len(class_list), dataset_name,
-                                     ', '.join(metric_names)))
+            if self.config['SEQ_TO_EVAL'] is not None:
+                seq_list = self.config['SEQ_TO_EVAL']
+            if do_print:
+                print('\nEvaluating %i tracker(s) on %i sequence(s) for %i class(es) on %s dataset using the following '
+                      'metrics: %s\n' % (len(tracker_list), len(seq_list), len(class_list), dataset_name,
+                                         ', '.join(metric_names)))
 
             # Evaluate each tracker
             for tracker in tracker_list:
@@ -71,7 +74,8 @@ class Evaluator:
                     # Evaluate each sequence in parallel or in series.
                     # returns a nested dict (res), indexed like: res[seq][class][metric_name][sub_metric field]
                     # e.g. res[seq_0001][pedestrian][hota][DetA]
-                    print('\nEvaluating %s\n' % tracker)
+                    if do_print:
+                        print('\nEvaluating %s\n' % tracker)
                     time_start = time.time()
                     if config['USE_PARALLEL']:
                         with Pool(config['NUM_PARALLEL_CORES']) as pool:
@@ -187,7 +191,6 @@ class Evaluator:
 @_timing.time
 def eval_sequence(seq, dataset, tracker, class_list, metrics_list, metric_names):
     """Function for evaluating a single sequence"""
-
     raw_data = dataset.get_raw_seq_data(tracker, seq)
     seq_res = {}
     for cls in class_list:
